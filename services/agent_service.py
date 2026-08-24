@@ -23,10 +23,12 @@ def search_company_reports(query: str):
     return search_financial_docs(query)
 
 
+# max_tokens değerini 4096 yaparak cevabın yarım kalmasını önlüyoruz
 llm = ChatGroq(
     model="qwen/qwen3.6-27b",
     api_key=os.getenv("GROQ_API_KEY"),
-    temperature=0.1
+    temperature=0.1,
+    max_tokens=4096
 )
 tools = [get_stock_forecast, search_company_reports]
 llm_with_tools = llm.bind_tools(tools)
@@ -41,6 +43,7 @@ def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
 
 
 def format_ai_response(content) -> str:
+    """<think> etiketlerini ve kapanmamış düşünme bloklarını tamamen temizler."""
     if isinstance(content, list) and len(content) > 0:
         text_parts = []
         for item in content:
@@ -52,8 +55,12 @@ def format_ai_response(content) -> str:
     else:
         raw_text = str(content)
 
-    cleaned_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
-    return cleaned_text if cleaned_text else raw_text.strip()
+    # 1. Kapanmış <think>...</think> bloklarını temizle
+    cleaned = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL)
+    # 2. Eğer model token sınırında kesildiyse ve </think> gelmediyse baştaki <think> bloğunu temizle
+    cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
+
+    return cleaned if cleaned else raw_text.strip()
 
 
 def ask_financial_agent(user_prompt: str, session_id: str = "default_session", lang: str = "tr"):
@@ -91,7 +98,7 @@ Data Retrieved from Systems and Financial Documents:
 {combined_context}
 
 TASK:
-Evaluate the conversation history and the newly retrieved financial data above. Provide a thorough, professional, and well-structured response in English using Markdown formatting and data tables where applicable."""
+Evaluate the conversation history and the newly retrieved financial data above. Provide a thorough, professional, and well-structured response in English using Markdown formatting and data tables where applicable. Answer directly without exposing internal reasoning."""
             else:
                 synthesis_prompt = f"""Sen kıdemli bir Finansal Analist ve Yatırım Uzmanısın.
 
@@ -102,7 +109,7 @@ Sistemden ve Finansal Dokümanlardan Elde Edilen Güncel Veriler:
 {combined_context}
 
 GÖREV:
-Geçmiş konuşmayı ve yukarıdaki yeni finansal verileri birlikte değerlendirerek net, profesyonel, sayısal verileri ve tabloları vurgulayan düzenli bir Türkçe Markdown formatında yanıt ver."""
+Geçmiş konuşmayı ve yukarıdaki yeni finansal verileri birlikte değerlendirerek doğrudan net, profesyonel, sayısal verileri ve tabloları vurgulayan düzenli bir Türkçe Markdown formatında yanıt ver. Düşünce aşamalarını yanıta dahil etme."""
 
             messages_for_synthesis = list(history.messages) + [HumanMessage(content=synthesis_prompt)]
             synthesis_res = llm.invoke(messages_for_synthesis)
