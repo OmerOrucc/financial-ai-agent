@@ -23,9 +23,9 @@ def search_company_reports(query: str):
     return search_financial_docs(query)
 
 
-# max_tokens değerini 4096 yaparak cevabın yarım kalmasını önlüyoruz
+# Llama 3.3 70B: Token israfı yapmaz, cevabın tamamını eksiksiz yazar
 llm = ChatGroq(
-    model="qwen/qwen3.6-27b",
+    model="llama-3.3-70b-versatile",
     api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.1,
     max_tokens=4096
@@ -43,7 +43,7 @@ def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
 
 
 def format_ai_response(content) -> str:
-    """<think> etiketlerini ve kapanmamış düşünme bloklarını tamamen temizler."""
+    """Yanıttaki liste/metin formatlarını düzgün metne dönüştürür."""
     if isinstance(content, list) and len(content) > 0:
         text_parts = []
         for item in content:
@@ -55,9 +55,7 @@ def format_ai_response(content) -> str:
     else:
         raw_text = str(content)
 
-    # 1. Kapanmış <think>...</think> bloklarını temizle
     cleaned = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL)
-    # 2. Eğer model token sınırında kesildiyse ve </think> gelmediyse baştaki <think> bloğunu temizle
     cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
 
     return cleaned if cleaned else raw_text.strip()
@@ -98,7 +96,7 @@ Data Retrieved from Systems and Financial Documents:
 {combined_context}
 
 TASK:
-Evaluate the conversation history and the newly retrieved financial data above. Provide a thorough, professional, and well-structured response in English using Markdown formatting and data tables where applicable. Answer directly without exposing internal reasoning."""
+Evaluate the conversation history and the newly retrieved financial data above. Provide a comprehensive, professional, and well-structured response in English using Markdown formatting and data tables where applicable. Structure your answer with clear headers, key metrics, and investment takeaways."""
             else:
                 synthesis_prompt = f"""Sen kıdemli bir Finansal Analist ve Yatırım Uzmanısın.
 
@@ -109,7 +107,7 @@ Sistemden ve Finansal Dokümanlardan Elde Edilen Güncel Veriler:
 {combined_context}
 
 GÖREV:
-Geçmiş konuşmayı ve yukarıdaki yeni finansal verileri birlikte değerlendirerek doğrudan net, profesyonel, sayısal verileri ve tabloları vurgulayan düzenli bir Türkçe Markdown formatında yanıt ver. Düşünce aşamalarını yanıta dahil etme."""
+Geçmiş konuşmayı ve yukarıdaki yeni finansal verileri birlikte değerlendirerek son derece net, profesyonel, sayısal verileri ve tabloları vurgulayan uzun ve kapsamlı bir Türkçe Markdown raporu hazırla. Başlıklar, tablolar ve analist yorumlarıyla yanıtını eksiksiz sun."""
 
             messages_for_synthesis = list(history.messages) + [HumanMessage(content=synthesis_prompt)]
             synthesis_res = llm.invoke(messages_for_synthesis)
