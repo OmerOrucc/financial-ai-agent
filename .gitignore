@@ -1,0 +1,20 @@
+# Sanal Ortam
+venv/
+env/
+.venv/
+
+# Çevre Değişkenleri (API Keys)
+.env
+
+# Python Önbellekleri
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vektör Veritabanı ve Yüklenen Geçici Dosyalar
+data/
+faiss_index/
+
+# OS Dosyaları
+.DS_Store
+Thumbs.db
