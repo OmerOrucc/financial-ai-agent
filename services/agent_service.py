@@ -23,9 +23,9 @@ def search_company_reports(query: str):
     return search_financial_docs(query)
 
 
-# Llama 3.3 70B: Token israfı yapmaz, cevabın tamamını eksiksiz yazar
+# Groq aktif üretim modeli: llama-3.1-70b-versatile
 llm = ChatGroq(
-    model="llama-3.3-70b-versatile",
+    model="llama-3.1-70b-versatile",
     api_key=os.getenv("GROQ_API_KEY"),
     temperature=0.1,
     max_tokens=4096
@@ -43,7 +43,6 @@ def get_session_history(session_id: str) -> InMemoryChatMessageHistory:
 
 
 def format_ai_response(content) -> str:
-    """Yanıttaki liste/metin formatlarını düzgün metne dönüştürür."""
     if isinstance(content, list) and len(content) > 0:
         text_parts = []
         for item in content:
@@ -57,7 +56,6 @@ def format_ai_response(content) -> str:
 
     cleaned = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL)
     cleaned = re.sub(r"<think>.*", "", cleaned, flags=re.DOTALL).strip()
-
     return cleaned if cleaned else raw_text.strip()
 
 
@@ -96,7 +94,7 @@ Data Retrieved from Systems and Financial Documents:
 {combined_context}
 
 TASK:
-Evaluate the conversation history and the newly retrieved financial data above. Provide a comprehensive, professional, and well-structured response in English using Markdown formatting and data tables where applicable. Structure your answer with clear headers, key metrics, and investment takeaways."""
+Evaluate the conversation history and the retrieved financial data above. Provide a detailed, professional, and well-structured response in English using Markdown formatting, headers, bullet points, and data tables where applicable."""
             else:
                 synthesis_prompt = f"""Sen kıdemli bir Finansal Analist ve Yatırım Uzmanısın.
 
@@ -107,7 +105,7 @@ Sistemden ve Finansal Dokümanlardan Elde Edilen Güncel Veriler:
 {combined_context}
 
 GÖREV:
-Geçmiş konuşmayı ve yukarıdaki yeni finansal verileri birlikte değerlendirerek son derece net, profesyonel, sayısal verileri ve tabloları vurgulayan uzun ve kapsamlı bir Türkçe Markdown raporu hazırla. Başlıklar, tablolar ve analist yorumlarıyla yanıtını eksiksiz sun."""
+Geçmiş konuşmayı ve yukarıdaki yeni finansal verileri birlikte değerlendirerek net, profesyonel, sayısal verileri ve tabloları vurgulayan düzenli bir Türkçe Markdown formatında yanıt ver."""
 
             messages_for_synthesis = list(history.messages) + [HumanMessage(content=synthesis_prompt)]
             synthesis_res = llm.invoke(messages_for_synthesis)
