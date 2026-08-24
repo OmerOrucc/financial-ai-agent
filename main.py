@@ -20,7 +20,7 @@ class DocSearchRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default_session"
-    lang: str = "tr"  # <-- Dil parametresi
+    lang: str = "tr" 
 
 
 app = FastAPI()

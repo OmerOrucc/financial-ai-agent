@@ -1,11 +1,16 @@
 import streamlit as st
-import requests
 import plotly.graph_objects as go
 import yfinance as yf
 import pandas as pd
 import uuid
+import os
 
-API_BASE_URL = "http://127.0.0.1:8000"
+if "GROQ_API_KEY" in st.secrets:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
+
+from services.forecaster import predict_stock_price
+from services.rag_service import load_and_process_pdf, add_documents_to_index
+from services.agent_service import ask_financial_agent
 
 st.set_page_config(
     page_title="Financial AI Agent & Dashboard",
@@ -13,7 +18,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Çok Dilli UI Sözlüğü
 TRANSLATIONS = {
     "TR": {
         "title": "📈 Finansal AI Analist ve Hisse Tahmin Sistemi",
@@ -25,9 +29,7 @@ TRANSLATIONS = {
         "indexing_spinner": "Rapor okunuyor, parçalanıyor ve FAISS'e kaydediliyor...",
         "index_success": "✅ Başarılı! {count} metin parçası indekslendi.",
         "reset_chat": "🗑️ Sohbeti Sıfırla",
-        "sys_status": "Sistem Durumu:",
-        "backend_online": "FastAPI Backend: Çevrimiçi",
-        "backend_offline": "FastAPI Backend: Çevrimdışı (Uvicorn'u başlatın)",
+        "sys_status": "Sistem Durumu: Çevrimiçi (Bulut)",
         "pred_header": "🎯 Derin Öğrenme (GRU) Fiyat Tahmini",
         "ticker_label": "Hisse Kodu (Örn: AAPL, THYAO.IS, ASELS.IS):",
         "predict_btn": "Tahmin Et",
@@ -54,9 +56,7 @@ TRANSLATIONS = {
         "indexing_spinner": "Reading report, chunking, and embedding into FAISS...",
         "index_success": "✅ Success! {count} text chunks indexed.",
         "reset_chat": "🗑️ Reset Chat",
-        "sys_status": "System Status:",
-        "backend_online": "FastAPI Backend: Online",
-        "backend_offline": "FastAPI Backend: Offline (Start Uvicorn)",
+        "sys_status": "System Status: Online (Cloud)",
         "pred_header": "🎯 Deep Learning (GRU) Price Forecaster",
         "ticker_label": "Stock Symbol (e.g. AAPL, MSFT, THYAO.IS):",
         "predict_btn": "Forecast",
@@ -90,16 +90,17 @@ with st.sidebar:
     if uploaded_file is not None:
         if st.button(t["index_btn"], use_container_width=True):
             with st.spinner(t["indexing_spinner"]):
-                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "application/pdf")}
                 try:
-                    response = requests.post(f"{API_BASE_URL}/api/v1/upload-pdf", files=files)
-                    if response.status_code == 200:
-                        data = response.json()
-                        st.success(t["index_success"].format(count=data.get('chunks_added', 0)))
-                    else:
-                        st.error(f"Error: {response.text}")
+                    os.makedirs("data", exist_ok=True)
+                    file_path = f"data/{uploaded_file.name}"
+                    with open(file_path, "wb") as f:
+                        f.write(uploaded_file.getbuffer())
+
+                    chunks = load_and_process_pdf(file_path)
+                    add_documents_to_index(chunks)
+                    st.success(t["index_success"].format(count=len(chunks)))
                 except Exception as e:
-                    st.error(f"Connection error: {e}")
+                    st.error(f"Error: {e}")
 
     st.markdown("---")
     if st.button(t["reset_chat"], use_container_width=True):
@@ -110,25 +111,17 @@ with st.sidebar:
         st.rerun()
 
     st.markdown("---")
-    st.markdown(f"**{t['sys_status']}**")
-    try:
-        health_resp = requests.get(f"{API_BASE_URL}/health", timeout=2)
-        if health_resp.status_code == 200:
-            st.success(t["backend_online"])
-    except:
-        st.error(t["backend_offline"])
+    st.success(f"🟢 {t['sys_status']}")
 
-# Oturum kimliği oluşturma
+# Oturum ve hafıza kontrolü
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 
-# Mesaj geçmişi başlatma veya dil değiştiğinde ilk mesajı senkronize etme
 if "messages" not in st.session_state:
     st.session_state.messages = [
         {"role": "assistant", "content": t["chat_initial"]}
     ]
 elif len(st.session_state.messages) == 1 and st.session_state.messages[0]["role"] == "assistant":
-    # Henüz kullanıcı soru sormadıysa, dil seçimine göre ilk karşılama mesajını güncelle
     st.session_state.messages[0]["content"] = t["chat_initial"]
 
 st.title(t["title"])
@@ -152,12 +145,11 @@ with col1:
     if predict_btn:
         with st.spinner(t["predicting_spinner"].format(sym=symbol_input)):
             try:
-                res = requests.post(
-                    f"{API_BASE_URL}/api/v1/predict",
-                    json={"symbol": symbol_input, "days": 1}
-                )
-                if res.status_code == 200:
-                    pred_data = res.json()
+                pred_data = predict_stock_price(symbol_input, days=1)
+
+                if "error" in pred_data:
+                    st.error(pred_data["error"])
+                else:
                     last_price = pred_data["last_close_price"]
                     next_price = pred_data["predictions"][0]
                     trend = pred_data["trend"]
@@ -204,8 +196,6 @@ with col1:
                         )
                         st.plotly_chart(fig, use_container_width=True)
 
-                else:
-                    st.error(f"Error: {res.text}")
             except Exception as e:
                 st.error(f"Error: {e}")
 
@@ -229,19 +219,8 @@ with col2:
             with st.chat_message("assistant"):
                 with st.spinner(t["chat_spinner"]):
                     try:
-                        res = requests.post(
-                            f"{API_BASE_URL}/api/v1/chat",
-                            json={
-                                "message": user_query,
-                                "session_id": st.session_state.session_id,
-                                "lang": api_lang
-                            }
-                        )
-                        if res.status_code == 200:
-                            ans = res.json().get("response", "No response received.")
-                            st.markdown(ans)
-                            st.session_state.messages.append({"role": "assistant", "content": ans})
-                        else:
-                            st.error(f"API Error: {res.text}")
+                        ans = ask_financial_agent(user_query, st.session_state.session_id, api_lang)
+                        st.markdown(ans)
+                        st.session_state.messages.append({"role": "assistant", "content": ans})
                     except Exception as e:
-                        st.error(f"Connection error: {e}")
+                        st.error(f"Error: {e}")
