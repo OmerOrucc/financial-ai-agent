@@ -1,9 +1,13 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+
 import streamlit as st
 import plotly.graph_objects as go
 import yfinance as yf
 import pandas as pd
 import uuid
-import os
 
 if "GROQ_API_KEY" in st.secrets:
     os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
