@@ -2,16 +2,6 @@
 
 An end-to-end financial intelligence platform combining **Deep Learning (GRU)** time-series forecasting, a **Dynamic Financial RAG** engine for PDF balance sheet analysis, and an **Autonomous Financial AI Agent** with multi-turn conversation memory.
 
----
-
-## 🏛 Architecture
-
-[Live Stock Data (yfinance)] ──> [Feature Eng. (17 Indicators)] ──> [GRU Model] ──┐
-                                                                                  ├──> [FastAPI Backend] <──> [Streamlit UI]
-[Financial Report (PDF)]    ──> [Multilingual Embeddings]      ──> [FAISS RAG]  ──┘          │
-                                                                                              └──> [AI Agent (Groq / Qwen 27B)]
-
----
 
 ## 🚀 Key Features
 
@@ -46,29 +36,6 @@ An end-to-end financial intelligence platform combining **Deep Learning (GRU)** 
 - **Machine Learning / Deep Learning:** TensorFlow/Keras, Scikit-Learn, NumPy, Pandas, yfinance
 - **AI & RAG:** LangChain, LangChain-Groq, LangChain-HuggingFace, FAISS, PyPDF, Sentence-Transformers
 
----
-
-## 📂 Project Structure
-
-financial-ai-agent/
-├── app.py                     # Streamlit frontend dashboard
-├── main.py                    # FastAPI backend server
-├── requirements.txt           # Python dependencies
-├── .env                       # Environment variables (API Keys)
-├── .gitignore                 # Git ignore rules
-├── services/
-│   ├── __init__.py
-│   ├── forecaster.py          # GRU feature engineering & live inference
-│   ├── rag_service.py         # PDF cleaning, chunking & FAISS indexer
-│   └── agent_service.py       # LangChain agent, tool calling & memory
-├── models/
-│   ├── gru_model.keras        # Trained GRU model weights
-│   ├── gru_scaler_x.pkl       # Input feature scaler
-│   └── gru_scaler_y.pkl       # Target scaler
-├── data/                      # Temporary storage for uploaded PDFs
-└── faiss_index/               # Local FAISS vector index files
-
----
 
 ## 💻 Installation & Setup
 
