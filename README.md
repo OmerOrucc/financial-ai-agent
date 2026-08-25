@@ -17,7 +17,7 @@ An end-to-end financial intelligence platform combining **Deep Learning (GRU)** 
    - Semantic vector search using sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 and FAISS.
 
 3. **Hybrid Financial AI Agent:**
-   - Powered by Groq (qwen/qwen3.6-27b) for ultra-fast, high-quality reasoning.
+   - Powered by Groq (openai/gpt-oss-120b) for ultra-fast, high-quality reasoning.
    - Dynamic Tool Calling: Decides whether to query the deep learning model, search vector documents, or synthesize both.
    - Multi-Turn Session Memory: Tracks context across sequential prompts using InMemoryChatMessageHistory.
 
